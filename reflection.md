@@ -20,7 +20,7 @@ Responsiblities above
 - Did your design change during implementation?
 Yes
 - If yes, describe at least one change and why you made it.
-The Owner class having a Pet variable
+I was moving times from the schedule to the idividual tasks
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
@@ -28,12 +28,16 @@ The Owner class having a Pet variable
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+
 - How did you decide which constraints mattered most?
+
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+
 - Why is that tradeoff reasonable for this scenario?
+
 
 ---
 
