@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from typing import List, Optional
 
 
@@ -158,26 +159,131 @@ class Scheduler:
         """Return tasks scheduled for a specific day."""
         return [task for task in self.get_all_tasks() if task.scheduled_day and task.scheduled_day.lower() == day.lower()]
 
+    def get_tasks_by_day_and_priority(self, day: str, priority: str) -> List[Task]:
+        """Return tasks for a specific day filtered by priority."""
+        return [
+            task
+            for task in self.get_tasks_by_day(day)
+            if task.priority.lower() == priority.lower()
+        ]
+
     def get_tasks_for_pet(self, pet_name: str) -> List[Task]:
         """Return all tasks for a specific pet."""
         return self.owner.get_tasks_for_pet(pet_name)
 
-    def schedule_task(self, task: Task, day: str, time: str) -> None:
-        """Schedule a task for a given day and time."""
+    def filter_tasks(self, completed: Optional[bool] = None, pet_name: Optional[str] = None) -> List[Task]:
+        """Filter tasks by completion status and/or pet name."""
+        tasks = self.get_all_tasks()
+        if completed is not None:
+            tasks = [task for task in tasks if task.is_completed == completed]
+        if pet_name is not None:
+            tasks = [
+                task
+                for task in tasks
+                if task.pet and task.pet.name.lower() == pet_name.lower()
+            ]
+        return tasks
+
+    def check_conflict(self, task: Task) -> Optional[str]:
+        """Detect scheduling conflicts and return a warning message.
+
+        A conflict occurs when another task is already scheduled for the same
+        day and time. This method is lightweight: it does not raise an error,
+        it returns a descriptive warning string for the caller to handle.
+        """
+        if not task.scheduled_day or not task.scheduled_time:
+            return None
+
+        conflicts = [
+            other
+            for other in self.get_all_tasks()
+            if other is not task
+            and other.scheduled_day
+            and other.scheduled_time
+            and other.scheduled_day.lower() == task.scheduled_day.lower()
+            and other.scheduled_time == task.scheduled_time
+        ]
+
+        if not conflicts:
+            return None
+
+        task_titles = ", ".join([task.title] + [other.title for other in conflicts])
+        pet_names = ", ".join(
+            other.pet.name if other.pet else "unknown"
+            for other in [task] + conflicts
+        )
+        return (
+            f"Warning: scheduling conflict on {task.scheduled_day} at {task.scheduled_time} "
+            f"for tasks [{task_titles}] assigned to pets [{pet_names}]"
+        )
+
+    def _get_next_occurrence_day(self, frequency: str) -> str:
+        """Return the weekday name for the next occurrence based on frequency.
+
+        For daily tasks, this is today + 1 day. For weekly tasks, this is
+        today + 7 days.
+        """
+        if frequency.lower() == "daily":
+            next_date = date.today() + timedelta(days=1)
+        elif frequency.lower() == "weekly":
+            next_date = date.today() + timedelta(days=7)
+        else:
+            raise ValueError(f"Unsupported frequency '{frequency}' for recurrence")
+        return next_date.strftime("%A")
+
+    def _create_followup_task(self, task: Task) -> Optional[Task]:
+        """Create a new follow-up task for recurring daily or weekly tasks.
+
+        The new task copies title, description, duration, priority, and frequency
+        from the completed task. It also preserves the same scheduled time,
+        but updates the scheduled day to the next occurrence.
+        """
+        if task.frequency.lower() not in {"daily", "weekly"}:
+            return None
+        if not task.scheduled_time or not task.pet:
+            return None
+
+        next_day = self._get_next_occurrence_day(task.frequency)
+        followup = Task(
+            title=task.title,
+            description=task.description,
+            duration_minutes=task.duration_minutes,
+            priority=task.priority,
+            frequency=task.frequency,
+            pet=task.pet,
+        )
+        followup.schedule(next_day, task.scheduled_time)
+        return followup
+
+    def schedule_task(self, task: Task, day: str, time: str) -> Optional[str]:
+        """Schedule a task and return a conflict warning if one exists."""
         task.schedule(day, time)
+        return self.check_conflict(task)
 
     def unschedule_task(self, task: Task) -> None:
         """Remove scheduling information from a task."""
         task.clear_schedule()
 
-    def complete_task(self, task: Task) -> None:
-        """Mark a task as complete."""
+    def complete_task(self, task: Task) -> Optional[Task]:
+        """Mark a task as complete and create the next occurrence for recurring tasks."""
         task.mark_completed()
+        followup_task = self._create_followup_task(task)
+        if followup_task and task.pet:
+            task.pet.add_task(followup_task)
+        return followup_task
 
     def get_daily_plan(self, day: str) -> List[Task]:
         """Return the day's scheduled tasks, sorted by priority and time."""
         tasks = self.get_tasks_by_day(day)
-        return sorted(tasks, key=self._sort_key)
+        return sorted(
+            tasks,
+            key=lambda task: (
+                self.PRIORITY_ORDER.get(task.priority.lower(), 3),
+                int(task.scheduled_time[:2]) * 60 + int(task.scheduled_time[3:])
+                if task.scheduled_time
+                else 24 * 60,
+            ),
+        )
 
     def get_pending_tasks(self) -> List[Task]:
         """Return all incomplete tasks across all pets."""

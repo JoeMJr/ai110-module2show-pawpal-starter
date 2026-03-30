@@ -40,9 +40,14 @@ def main() -> None:
     owner.add_task(task3, pet_name="Mochi")
 
     scheduler = Scheduler(owner=owner)
-    task1.schedule(day="Monday", time="08:00")
-    task2.schedule(day="Monday", time="18:30")
-    task3.schedule(day="Monday", time="20:00")
+    warning1 = scheduler.schedule_task(task1, day="Monday", time="08:00")
+    warning2 = scheduler.schedule_task(task2, day="Monday", time="08:00")
+    scheduler.schedule_task(task3, day="Monday", time="20:00")
+
+    if warning1:
+        print(warning1)
+    if warning2:
+        print(warning2)
 
     today = "Monday"
     todays_tasks = scheduler.get_daily_plan(today)

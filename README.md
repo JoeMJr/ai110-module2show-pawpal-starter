@@ -22,6 +22,16 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+This implementation now includes:
+
+- priority-aware daily planning with time-based ordering
+- combined day-and-priority task filtering
+- generic task filtering by completion status and pet name
+- lightweight conflict detection that returns warnings instead of crashing
+- automatic follow-up task creation for recurring daily and weekly tasks
+
 ## Getting started
 
 ### Setup
