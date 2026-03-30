@@ -1,8 +1,17 @@
 import streamlit as st
 import pawpal_system as pawpal
+from datetime import datetime
 
 if "owner" not in st.session_state:
     st.session_state.owner = pawpal.Owner(name="Jordan")
+
+
+def is_valid_time(time_str: str) -> bool:
+    try:
+        datetime.strptime(time_str, "%H:%M")
+        return True
+    except ValueError:
+        return False
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -52,8 +61,12 @@ st.markdown("### Pets")
 new_pet_name = st.text_input("New pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 if st.button("Add pet"):
-    owner.add_pet(pawpal.Pet(name=new_pet_name.strip() or "Unnamed pet", species=species))
-    st.success(f"Added pet {new_pet_name.strip() or 'Unnamed pet'} the {species}")
+    pet_name_text = new_pet_name.strip() or "Unnamed pet"
+    if owner.find_pet(pet_name_text):
+        st.warning(f"A pet named '{pet_name_text}' already exists.")
+    else:
+        owner.add_pet(pawpal.Pet(name=pet_name_text, species=species))
+        st.success(f"Added pet {pet_name_text} the {species}")
 
 pets = owner.get_pets()
 if pets:
@@ -85,16 +98,32 @@ pet_names = [pet.name for pet in owner.get_pets()]
 if pet_names:
     selected_pet = st.selectbox("Pet", pet_names)
     if st.button("Add task"):
-        new_task = pawpal.Task(
-            title=task_title,
-            description=f"{task_title} for {selected_pet}",
-            duration_minutes=int(duration),
-            priority=priority,
-            frequency=frequency,
-        )
-        owner.add_task(new_task, pet_name=selected_pet)
-        new_task.schedule(selected_day, scheduled_time)
-        st.success(f"Added task '{task_title}' for {selected_pet} on {selected_day} at {scheduled_time}")
+        title = task_title.strip() or "Untitled task"
+        if not is_valid_time(scheduled_time):
+            st.error("Please enter a valid scheduled time in HH:MM format.")
+        else:
+            pet = owner.find_pet(selected_pet)
+            if pet is None:
+                st.error("Selected pet could not be found. Please refresh the app.")
+            else:
+                new_task = pawpal.Task(
+                    title=title,
+                    description=f"{title} for {selected_pet}",
+                    duration_minutes=int(duration),
+                    priority=priority,
+                    frequency=frequency,
+                    pet=pet,
+                )
+                try:
+                    owner.add_task(new_task, pet_name=selected_pet)
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    scheduler = pawpal.Scheduler(owner)
+                    conflict_warning = scheduler.schedule_task(new_task, selected_day, scheduled_time)
+                    if conflict_warning:
+                        st.warning(conflict_warning)
+                    st.success(f"Added task '{title}' for {selected_pet} on {selected_day} at {scheduled_time}")
 else:
     st.warning("Add a pet before adding tasks.")
 
