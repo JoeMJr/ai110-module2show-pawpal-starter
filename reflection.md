@@ -5,13 +5,22 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+I was going to have an Owner that has a Pet
+Owner will have a name
+This Pet will have a Name and Species
+These Owners will have Tasks for their Pet
+Tasks will have a title, duration and priority
+A Schedule wil consist of Tasks with a time (Day of the week, and Time of Day) associated to it
 - What classes did you include, and what responsibilities did you assign to each?
+Classes: Owner, Pet, Task, and Schedule
+Responsiblities above
 
 **b. Design changes**
 
 - Did your design change during implementation?
+Yes
 - If yes, describe at least one change and why you made it.
-
+The Owner class having a Pet variable
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
@@ -33,7 +42,9 @@
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
 - What kinds of prompts or questions were most helpful?
+
 
 **b. Judgment and verification**
 
