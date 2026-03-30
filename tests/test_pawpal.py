@@ -277,3 +277,227 @@ def test_scheduler_creates_next_weekly_occurrence_when_task_completed() -> None:
     assert followup.scheduled_time == "20:00"
     assert followup.frequency == "weekly"
     assert followup.pet is pet
+
+
+def test_empty_schedule_returns_no_tasks() -> None:
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner=owner)
+
+    assert scheduler.get_all_tasks() == []
+    assert scheduler.get_daily_plan("Monday") == []
+    assert scheduler.filter_tasks(completed=False) == []
+
+
+def test_scheduler_daily_plan_same_priority_orders_by_time() -> None:
+    owner = Owner(name="Jordan")
+    pet = Pet(name="Mochi", species="dog")
+    owner.add_pet(pet)
+
+    task_early = Task(
+        title="Early walk",
+        description="Walk the dog early.",
+        duration_minutes=20,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+    task_late = Task(
+        title="Late walk",
+        description="Walk the dog later.",
+        duration_minutes=20,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+
+    owner.add_task(task_early, pet_name="Mochi")
+    owner.add_task(task_late, pet_name="Mochi")
+
+    task_early.schedule(day="Monday", time="08:00")
+    task_late.schedule(day="Monday", time="18:00")
+
+    scheduler = Scheduler(owner=owner)
+    ordered_tasks = scheduler.get_daily_plan("Monday")
+
+    assert ordered_tasks == [task_early, task_late]
+
+
+def test_scheduler_daily_plan_same_time_orders_by_priority() -> None:
+    owner = Owner(name="Jordan")
+    pet = Pet(name="Mochi", species="dog")
+    owner.add_pet(pet)
+
+    high_priority = Task(
+        title="High priority",
+        description="Important task.",
+        duration_minutes=15,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+    low_priority = Task(
+        title="Low priority",
+        description="Less important task.",
+        duration_minutes=15,
+        priority="low",
+        frequency="daily",
+        pet=pet,
+    )
+
+    owner.add_task(high_priority, pet_name="Mochi")
+    owner.add_task(low_priority, pet_name="Mochi")
+
+    high_priority.schedule(day="Monday", time="09:00")
+    low_priority.schedule(day="Monday", time="09:00")
+
+    scheduler = Scheduler(owner=owner)
+    ordered_tasks = scheduler.get_daily_plan("Monday")
+
+    assert ordered_tasks == [high_priority, low_priority]
+
+
+def test_scheduler_daily_plan_unknown_priority_sorts_last() -> None:
+    owner = Owner(name="Jordan")
+    pet = Pet(name="Mochi", species="dog")
+    owner.add_pet(pet)
+
+    normal_task = Task(
+        title="Normal task",
+        description="Regular priority.",
+        duration_minutes=15,
+        priority="low",
+        frequency="daily",
+        pet=pet,
+    )
+    unknown_task = Task(
+        title="Unknown task",
+        description="Unknown priority.",
+        duration_minutes=15,
+        priority="urgent",
+        frequency="daily",
+        pet=pet,
+    )
+
+    owner.add_task(normal_task, pet_name="Mochi")
+    owner.add_task(unknown_task, pet_name="Mochi")
+
+    normal_task.schedule(day="Monday", time="09:00")
+    unknown_task.schedule(day="Monday", time="09:00")
+
+    scheduler = Scheduler(owner=owner)
+    ordered_tasks = scheduler.get_daily_plan("Monday")
+
+    assert ordered_tasks == [normal_task, unknown_task]
+
+
+def test_complete_recurring_task_without_time_does_not_create_followup() -> None:
+    pet = Pet(name="Mochi", species="dog")
+    task = Task(
+        title="Morning walk",
+        description="Walk the dog.",
+        duration_minutes=30,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner=owner)
+
+    followup = scheduler.complete_task(task)
+
+    assert followup is None
+
+
+def test_complete_recurring_task_without_pet_does_not_create_followup() -> None:
+    task = Task(
+        title="Morning walk",
+        description="Walk the dog.",
+        duration_minutes=30,
+        priority="high",
+        frequency="daily",
+    )
+    task.schedule(day="Monday", time="08:00")
+
+    owner = Owner(name="Jordan")
+    scheduler = Scheduler(owner=owner)
+
+    followup = scheduler.complete_task(task)
+
+    assert followup is None
+
+
+def test_complete_non_recurring_task_does_not_create_followup() -> None:
+    pet = Pet(name="Mochi", species="dog")
+    owner = Owner(name="Jordan")
+    owner.add_pet(pet)
+
+    task = Task(
+        title="One-time groom",
+        description="Groom the dog once.",
+        duration_minutes=30,
+        priority="medium",
+        frequency="one-time",
+        pet=pet,
+    )
+    owner.add_task(task, pet_name="Mochi")
+    task.schedule(day="Monday", time="10:00")
+
+    scheduler = Scheduler(owner=owner)
+    followup = scheduler.complete_task(task)
+
+    assert followup is None
+
+
+def test_check_conflict_does_not_report_conflict_for_same_task() -> None:
+    owner = Owner(name="Jordan")
+    pet = Pet(name="Mochi", species="dog")
+    owner.add_pet(pet)
+
+    task = Task(
+        title="Morning walk",
+        description="Walk the dog.",
+        duration_minutes=30,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+    owner.add_task(task, pet_name="Mochi")
+    task.schedule(day="Monday", time="08:00")
+
+    scheduler = Scheduler(owner=owner)
+    warning = scheduler.check_conflict(task)
+
+    assert warning is None
+
+
+def test_unscheduled_task_never_reports_conflict() -> None:
+    owner = Owner(name="Jordan")
+    pet = Pet(name="Mochi", species="dog")
+    owner.add_pet(pet)
+
+    scheduled_task = Task(
+        title="Morning walk",
+        description="Walk the dog.",
+        duration_minutes=30,
+        priority="high",
+        frequency="daily",
+        pet=pet,
+    )
+    owner.add_task(scheduled_task, pet_name="Mochi")
+    scheduled_task.schedule(day="Monday", time="08:00")
+
+    unscheduled_task = Task(
+        title="Unscheduled play",
+        description="Play with the dog later.",
+        duration_minutes=20,
+        priority="medium",
+        frequency="daily",
+        pet=pet,
+    )
+    owner.add_task(unscheduled_task, pet_name="Mochi")
+
+    scheduler = Scheduler(owner=owner)
+    warning = scheduler.check_conflict(unscheduled_task)
+
+    assert warning is None

@@ -51,3 +51,10 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+### Testing PawPal+
+Running Tests
+```bash
+python -m pytest
+```
+Confidence Level: 4/5 Stars

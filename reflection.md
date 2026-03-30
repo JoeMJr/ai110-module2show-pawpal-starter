@@ -65,15 +65,15 @@ I read the code present that he changed and saw that it ignored an important par
 **a. What you tested**
 
 - What behaviors did you test?
-
+Empty schedule case, Sorting edge cases, Recurring task edge cases, and Conflict detection edge cases
 - Why were these tests important?
-
+Since these are core features and common pit falls people would have when using the app
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
-
+4/5
 - What edge cases would you test next if you had more time?
-
+Tests around Ownership / task assignment edge cases due to how owners is designed
 ---
 
 ## 5. Reflection
@@ -81,7 +81,7 @@ I read the code present that he changed and saw that it ignored an important par
 **a. What went well**
 
 - What part of this project are you most satisfied with?
-
+The classes and the methods they hold
 
 **b. What you would improve**
 
